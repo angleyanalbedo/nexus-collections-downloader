@@ -51,6 +51,19 @@ dotnet build desktop/Ash.Nexus.csproj -c Release -p:SkipFrontendBuild=true
 
 前端源代码位于 `frontend/`；`desktop/Assets/` 是构建产物。窗口代码按浏览器、消息桥接和下载职责分文件，仍使用 WPF partial class。
 
+## 自动发布
+
+仓库包含 `.github/workflows/release.yml`。推送版本标签后，GitHub Actions 自动在 Windows 上安装 Node.js 和 .NET 8、运行前端测试、构建前端并发布桌面程序，最后创建 GitHub Release，上传 Windows x64 压缩包及 SHA-256 校验文件。
+
+```powershell
+git tag -a v0.3.2 -m "ASH v0.3.2"
+git push origin HEAD v0.3.2
+```
+
+请在包含工作流的提交上创建新标签。`v0.3.2-beta.1` 等标签会发布为预发布版。也可在 Actions 页面手动运行工作流并指定已有标签；该标签对应的提交必须包含工作流。重跑会替换同名附件，保留已有 Release 说明。首次运行结果请到 Actions 页面确认。
+
+自动生成的程序包仍需要 .NET 8 Desktop Runtime 和 WebView2 Runtime。
+
 ## CDP 调试
 
 先退出已运行的 ASH，再运行 `start-debug.cmd`，或：

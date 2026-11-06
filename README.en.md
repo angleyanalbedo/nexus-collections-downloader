@@ -51,6 +51,19 @@ Stack: .NET 8 WPF, Microsoft WebView2, Vue 3, TypeScript, Vite, SQLite, and the 
 
 Frontend sources live in `frontend/`; `desktop/Assets/` contains generated output. Window code is split by browser, bridge, and download responsibilities and still uses WPF partial classes.
 
+## Automated Releases
+
+The `.github/workflows/release.yml` workflow runs on version-tag pushes. A Windows runner installs Node.js and .NET 8, tests and builds the frontend, publishes the desktop app, and creates a GitHub Release with a Windows x64 ZIP and SHA-256 checksum file.
+
+```powershell
+git tag -a v0.3.2 -m "ASH v0.3.2"
+git push origin HEAD v0.3.2
+```
+
+Create new tags on a commit containing the workflow. Tags such as `v0.3.2-beta.1` create prereleases. Manual runs from the Actions page accept an existing tag whose commit contains the workflow. Reruns replace matching assets and preserve existing release notes. Check Actions for the first run's result.
+
+Generated packages still require .NET 8 Desktop Runtime and WebView2 Runtime.
+
 ## CDP Debugging
 
 Exit existing ASH instances before running `start-debug.cmd`, or launch:
