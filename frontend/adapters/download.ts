@@ -81,11 +81,11 @@ function extractUrl(value: unknown): string | null {
 export function detectBlockedText(value: string): string | null {
   const text = value.replace(/\s+/g, ' ');
   if (
-    /archived version of this mod|no longer supported|(?:file|version).{0,30}(?:archived|retired|removed|deleted)|download (?:was|has been) (?:disabled|removed)/i.test(
+    /download (?:is|was|has been) (?:disabled|removed|unavailable)|(?:file|version).{0,30}(?:removed|deleted) by (?:the )?(?:author|moderator)|this file (?:is|has been) (?:disabled|removed|deleted)/i.test(
       text,
     )
   )
-    return '该文件已归档或作者关闭了下载入口，无法自动下载。';
+    return '该文件已被删除或关闭了下载入口，无法自动下载。';
   if (
     /(?:premium|supporter).{0,40}(?:required|only|exclusive)|(?:requires|need|needs).{0,30}(?:premium|supporter)/i.test(
       text,

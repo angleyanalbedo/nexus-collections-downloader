@@ -58,12 +58,13 @@ describe('Nexus adapters', () => {
     expect(result.description).toBe(description.trim());
     expect(result.status).toBe('ready');
   });
-  it('recognizes archived Nexus files before making download requests', () => {
+  it('does not confuse an archived version warning with a disabled download', () => {
     expect(
       detectBlockedText(
         'You are downloading an archived version of this mod which is no longer supported by the mod author.',
       ),
-    ).toContain('归档');
+    ).toBeNull();
+    expect(detectBlockedText('The download has been disabled by the author.')).toContain('关闭');
     expect(detectBlockedText('Manual download')).toBeNull();
   });
 });
