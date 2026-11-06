@@ -18,16 +18,17 @@ public partial class MainWindow {
         if(continueQueue&&queueEnabled)ScheduleNext();
     }
     async Task Next(){
-        if(!queueEnabled||active!=null||busy)return;
-        active=tasks.FirstOrDefault(t=>t.Status=="queued");if(active==null){queueEnabled=false;SetMessage("队列已完成。");return;}
+        if(!queueEnabled||active!=null||busy||runningTransfers.Count>=maxConcurrentDownloads)return;
+        active=tasks.FirstOrDefault(t=>t.Status=="queued");if(active==null){if(runningTransfers.Count==0){queueEnabled=false;SetMessage(tasks.Any(t=>t.Status=="paused")?"队列包含已暂停任务。":"队列已结束。");}return;}
         var task=active;downloadPageActive=true;
         task.Status="waiting";task.Error="正在通过网站获取下载链接…";store.Save(task);
         var target=new UriBuilder(Data.PageUrl(task.File.Url));
         target.Query="tab=files&file_id="+Uri.EscapeDataString(task.File.FileId)+"&nmm=0";
-        await Navigate(target.Uri.AbsoluteUri);
+        try{await Navigate(target.Uri.AbsoluteUri);
         var deadline=DateTime.UtcNow.AddSeconds(75);
         while(ReferenceEquals(active,task)&&task.Status=="waiting"&&DateTime.UtcNow<deadline){
             var lookup=await InvokeDownloadAdapter(task.File.FileId,target.Path);
+            if(!ReferenceEquals(active,task)||task.Status!="waiting"||!tasks.Contains(task)||closing)return;
             if(lookup is null){await Task.Delay(500);continue;}
             var result=lookup.Value.GetRawText();
             string? step=null,url=null,error=null;
@@ -66,6 +67,7 @@ public partial class MainWindow {
         if(ReferenceEquals(active,task)&&task.Status=="waiting"){
             FailDownloadLookup(task,"75 秒内未取得 Nexus 下载链接，请检查登录、验证或文件版本。","获取下载链接超时，队列已停止；可查看网页步骤后重新尝试。",false);
         }
+        }catch(Exception ex){if(ReferenceEquals(active,task)&&task.Status=="waiting"&&!closing)FailDownloadLookup(task,"获取下载链接失败："+ex.Message,"获取下载链接失败，可重新尝试。",false);}
     }
 
     async Task<JsonElement?> InvokeDownloadAdapter(string fileId,string pagePath){
@@ -104,16 +106,31 @@ public partial class MainWindow {
             var remoteName=Path.GetFileName(url.LocalPath);
             var baseName=string.IsNullOrWhiteSpace(task.File.Name)?task.File.ModName:task.File.Name;
             var fallback=string.IsNullOrWhiteSpace(baseName)?"download":baseName;
-            if(!Path.HasExtension(fallback))fallback+=".zip";
+            if(!DownloadFileName.HasArchiveExtension(fallback))fallback+=".bin";
             var candidate=string.IsNullOrWhiteSpace(remoteName)||!Path.HasExtension(remoteName)?fallback:remoteName;
-            task.Path=Data.SafePath(output,folder,candidate);
+
             var cookies=new System.Net.CookieContainer();
             foreach(var cookie in await Site.CoreWebView2.CookieManager.GetCookiesAsync(url.AbsoluteUri)){
                 try{cookies.Add(new System.Net.Cookie(cookie.Name,cookie.Value,cookie.Path,cookie.Domain){Secure=cookie.IsSecure,HttpOnly=cookie.IsHttpOnly});}catch(System.Net.CookieException){}
             }
             var ticket=new TransferTicket{Url=url,Cookies=cookies,UserAgent=Site.CoreWebView2.Settings.UserAgent,Referer=Uri.TryCreate(DisplayUrl(Site.Source?.AbsoluteUri??""),UriKind.Absolute,out var referer)?referer:null};
+            if(closing||!tasks.Contains(task)||task.Status=="cancelled")return;
+            if(string.IsNullOrWhiteSpace(task.Path)||!DownloadFileName.HasArchiveExtension(task.Path)){
+                using var handler=new System.Net.Http.HttpClientHandler{CookieContainer=cookies};
+                using var client=new System.Net.Http.HttpClient(handler){Timeout=TimeSpan.FromSeconds(15)};
+                using var request=new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get,url);
+                request.Headers.UserAgent.TryParseAdd(ticket.UserAgent);
+                request.Headers.Referrer=ticket.Referer;
+                using var response=await client.SendAsync(request,System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
+                response.EnsureSuccessStatusCode();
+                var disposition=response.Content.Headers.ContentDisposition;
+                var name=disposition?.FileNameStar??disposition?.FileName;
+                candidate=DownloadFileName.Resolve(name,candidate);
+                if(closing||!tasks.Contains(task)||task.Status=="cancelled")return;
+                task.Path=Data.SafePath(output,folder,candidate);
+            }
             await RunTransfer(task,ticket);
-        }catch(Exception ex){task.Status="failed";task.Error=ex is InvalidOperationException?ex.Message:"无法接管下载链接，请检查保存目录后重试。";store.Save(task);if(ReferenceEquals(active,task))active=null;queueEnabled=false;Publish();}
+        }catch(Exception ex){if(closing||!tasks.Contains(task)||task.Status=="cancelled")return;task.Status="failed";task.Error=ex is InvalidOperationException?ex.Message:"无法接管下载链接，请检查保存目录后重试。";store.Save(task);if(ReferenceEquals(active,task))active=null;queueEnabled=false;Publish();}
     }
     async void OnDownload(object? sender,CoreWebView2DownloadStartingEventArgs e){
         using var deferral=e.GetDeferral();
@@ -133,6 +150,7 @@ public partial class MainWindow {
         }catch{task.Status="failed";task.Error="无法接管下载链接，请检查保存目录后重试。";store.Save(task);active=null;queueEnabled=false;Publish();}
     }
     async Task RunTransfer(DownloadTask task,TransferTicket ticket){
+        if(closing||!tasks.Contains(task)||task.Status=="cancelled"||runningTransfers.ContainsKey(task.Id))return;
         var transferCancel=new CancellationTokenSource();
         runningTransfers[task.Id]=transferCancel;transferTickets[task.Id]=ticket;
         var transfer=new ModernTransfer(ticket);runningServices[task.Id]=transfer;
@@ -140,13 +158,14 @@ public partial class MainWindow {
         try{
             var progress=new Progress<(long Received,long Total)>(p=>{if(!closing){task.Received=p.Received;task.Total=p.Total;}});
             await transfer.Run(ticket.Url.AbsoluteUri,task.Path,task.File.Size,progress,transferCancel.Token);
+            if(task.Status=="cancelled"||!tasks.Contains(task))return;
             task.Received=new FileInfo(task.Path).Length;task.Total=task.Received;task.Status="completed";
         }catch(OperationCanceledException){if(task.Status!="cancelled"){task.Status="paused";task.CanResume=true;}}
-        catch(InvalidOperationException ex){task.Status="failed";task.Error=ex.Message;queueEnabled=false;}
-        catch{task.Status="failed";task.Error="传输中断或文件写入失败，可重试以重新获取链接。";queueEnabled=false;}
+        catch(InvalidOperationException ex){if(task.Status=="cancelled"||!tasks.Contains(task))return;task.Status="failed";task.Error=ex.Message;queueEnabled=false;}
+        catch{if(task.Status=="cancelled"||!tasks.Contains(task))return;task.Status="failed";task.Error="传输中断或文件写入失败，可重试以重新获取链接。";queueEnabled=false;}
         finally{
             runningTransfers.Remove(task.Id);runningServices.Remove(task.Id);transferCancel.Dispose();
-            if(!closing){store.Save(task);if(task.Status!="paused")transferTickets.Remove(task.Id);Publish();if(task.Status=="completed"&&queueEnabled)ScheduleNext();}
+            if(!closing&&tasks.Contains(task)){store.Save(task);if(task.Status!="paused")transferTickets.Remove(task.Id);Publish();if(queueEnabled)ScheduleNext();}
         }
     }
 }

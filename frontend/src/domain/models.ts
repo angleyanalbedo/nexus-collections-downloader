@@ -59,6 +59,7 @@ export interface HostState {
   snapshot: PageSnapshot | null;
   busy: boolean;
   queueEnabled: boolean;
+  maxConcurrentDownloads?: number;
   output: string;
   message: string;
   siteUrl: string;
@@ -67,6 +68,7 @@ export interface HostState {
   navigationManagedByHost?: boolean;
 }
 export type HostCommand =
+  | { action: 'setConcurrency'; value: number }
   | {
       action: 'ready' | 'login' | 'browser' | 'read' | 'start' | 'stop' | 'folder' | 'openFolder';
     }

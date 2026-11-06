@@ -69,6 +69,12 @@ function clearFinished() {
         <p>链接获取与文件传输分开进行。拿到签名链接后会立即交给后台下载。</p>
       </div>
       <div class="queue-actions">
+        <label>同时下载
+          <select :value="workspace.host.maxConcurrentDownloads ?? 4"
+            @change="send({ action: 'setConcurrency', value: Number(($event.target as HTMLSelectElement).value) })">
+            <option v-for="count in 16" :key="count" :value="count">{{ count }} 个文件</option>
+          </select>
+        </label>
         <button
           class="primary"
           :disabled="!workspace.host.tasks.some((task) => task.status === 'queued')"

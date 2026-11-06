@@ -10,6 +10,7 @@ namespace Ash.Nexus;
 public partial class MainWindow : Window {
     string dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ASH", "Nexus");
     readonly string assets = Path.Combine(AppContext.BaseDirectory, "Assets");
+    int maxConcurrentDownloads = 4;
     Store store = null!;
     List<DownloadTask> tasks = [];
     PageSnapshot? snapshot;
@@ -28,6 +29,7 @@ public partial class MainWindow : Window {
     async void OnLoaded(object sender, RoutedEventArgs e) {
         try {
             store = new Store(dataDir); tasks=store.Load();output=store.Setting("output")??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),"Downloads","ASH");
+            if(int.TryParse(store.Setting("maxConcurrentDownloads"),out var savedConcurrency))maxConcurrentDownloads=Math.Clamp(savedConcurrency,1,16);
             var uiEnv=await CoreWebView2Environment.CreateAsync(null,Path.Combine(dataDir,"UiProfile"),BrowserDebugOptions.Create(1));
             await Ui.EnsureCoreWebView2Async(uiEnv);
             Ui.CoreWebView2.SetVirtualHostNameToFolderMapping("ash.local",assets,CoreWebView2HostResourceAccessKind.DenyCors);
@@ -54,7 +56,7 @@ public partial class MainWindow : Window {
             timer.Tick+=async(_,_)=>{if(active is not null||runningTransfers.Count>0)Publish();if(!busy&&!reading&&Site.Source?.Host.EndsWith("nexusmods.com")==true)await ReadPage(false);};timer.Start();
         } catch(Exception ex){MessageBox.Show("ASH 启动失败："+ex.Message+"\n请确认已安装 .NET 8 桌面运行时和 Microsoft Edge WebView2。","ASH");}
     }
-    void Publish(){if(!ready||closing)return;Ui.CoreWebView2.PostWebMessageAsJson(Data.Encode(new {type="state",tasks,snapshot=browseSnapshot??snapshot,busy,queueEnabled,output,message,initialUrl=InitialUrl(),navigationManagedByHost=false,siteUrl=DisplayUrl(Site.Source?.AbsoluteUri??""),browserVisible=BrowserPanel.Visibility==Visibility.Visible}));}
+    void Publish(){if(!ready||closing)return;Ui.CoreWebView2.PostWebMessageAsJson(Data.Encode(new {type="state",tasks,snapshot=browseSnapshot??snapshot,busy,queueEnabled,maxConcurrentDownloads,output,message,initialUrl=InitialUrl(),navigationManagedByHost=false,siteUrl=DisplayUrl(Site.Source?.AbsoluteUri??""),browserVisible=BrowserPanel.Visibility==Visibility.Visible}));}
     string InitialUrl(){
         var args=Environment.GetCommandLineArgs();
         var index=Array.IndexOf(args,"--open");

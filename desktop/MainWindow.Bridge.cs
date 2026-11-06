@@ -14,6 +14,14 @@ public partial class MainWindow {
             using var doc=JsonDocument.Parse(e.WebMessageAsJson);var p=doc.RootElement;var action=p.GetProperty("action").GetString();
             string Val(string name)=>p.TryGetProperty(name,out var v)?v.GetString()??"":"";
             switch(action){
+                case "setConcurrency":
+                    if(!p.TryGetProperty("value",out var concurrencyValue)||!concurrencyValue.TryGetInt32(out var concurrency)||concurrency<1||concurrency>16)
+                        throw new InvalidOperationException("同时下载文件数必须为 1–16。");
+                    maxConcurrentDownloads=concurrency;
+                    store.Set("maxConcurrentDownloads",concurrency.ToString());
+                    Publish();
+                    if(queueEnabled)ScheduleNext();
+                    break;
                 case "ready":Publish();break;
                 case "browse":
                     if(active?.Status=="waiting")throw new InvalidOperationException("正在获取当前文件的下载链接，请稍候。");
@@ -82,7 +90,6 @@ public partial class MainWindow {
                     if(deleteTask is null)break;
                     if(deleteTask.Status is not ("completed" or "cancelled" or "failed"))
                         throw new InvalidOperationException("只能删除已结束的下载记录。");
-                    runningTransfers.Remove(deleteTask.Id);
                     runningServices.Remove(deleteTask.Id);
                     transferTickets.Remove(deleteTask.Id);
                     tasks.Remove(deleteTask);
@@ -94,7 +101,6 @@ public partial class MainWindow {
                         throw new InvalidOperationException("请先取消正在进行的任务。");
                     var finished=tasks.Where(t=>t.Status is "completed" or "cancelled" or "failed").ToList();
                     foreach(var task in finished){
-                        runningTransfers.Remove(task.Id);
                         runningServices.Remove(task.Id);
                         transferTickets.Remove(task.Id);
                         tasks.Remove(task);
@@ -104,7 +110,7 @@ public partial class MainWindow {
                     break;
                 case "retry":
                     var retry=tasks.FirstOrDefault(t=>t.Id==Val("id"));
-                    if(retry!=null&&retry.Status is "failed" or "paused" or "cancelled"){
+                    if(retry!=null&&!runningTransfers.ContainsKey(retry.Id)&&retry.Status is ("failed" or "paused" or "cancelled")){
                         retry.Status="queued";retry.Error="";retry.CanResume=false;store.Save(retry);
                         queueEnabled=true;ScheduleNext();
                     }
