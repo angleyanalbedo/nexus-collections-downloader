@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType><TargetFramework>net8.0-windows</TargetFramework><UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><AssemblyName>ASH</AssemblyName>
+    <ApplicationIcon>Resources\ash.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3650.58" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
+    <PackageReference Include="Downloader" Version="6.0.1" />
+    <Compile Remove="tests\**\*.cs" />
+    <Resource Include="Resources\ash.ico" />
+  </ItemGroup>
+  <Target Name="BuildFrontend" BeforeTargets="PrepareForBuild" Condition="'$(SkipFrontendBuild)' != 'true'">
+    <Error Condition="!Exists('..\frontend\node_modules')" Text="前端依赖缺失，请在 frontend 目录执行 npm ci。" />
+    <Exec WorkingDirectory="..\frontend" Command="npm run build" />
+  </Target>
+  <Target Name="CollectFrontendAssets" BeforeTargets="AssignTargetPaths" DependsOnTargets="BuildFrontend">
+    <ItemGroup><Content Include="Assets\**\*" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+  </Target>
+</Project>

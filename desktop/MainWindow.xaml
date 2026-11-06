@@ -1,0 +1,8 @@
+<Window x:Class="Ash.Nexus.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:wv="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf" Title="ASH · Nexus Downloads" Icon="Resources/ash.ico" Width="1320" Height="870" MinWidth="850" MinHeight="620" Background="#141513" Loaded="OnLoaded" Closing="OnClosing">
+ <Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition x:Name="BrowserRow" Height="0"/></Grid.RowDefinitions>
+ <wv:WebView2 x:Name="Ui"/>
+ <Grid Grid.Row="1" Background="#20251b"><Grid.RowDefinitions><RowDefinition Height="42"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+  <DockPanel Margin="10,5"><Button Content="收起网页" DockPanel.Dock="Right" Click="HideBrowser" Padding="10,2"/><Button Content="读取当前页面" DockPanel.Dock="Right" Click="ReadCurrent" Padding="10,2" Margin="6,0"/><Button Content="刷新" DockPanel.Dock="Left" Click="RefreshBrowser" Padding="10,2"/><TextBlock x:Name="BrowserAddress" Foreground="#d9ed9b" VerticalAlignment="Center" Margin="12,0" TextTrimming="CharacterEllipsis"/></DockPanel>
+  <wv:WebView2 x:Name="Site" Grid.Row="1"/>
+ </Grid></Grid>
+</Window>
