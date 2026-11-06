@@ -156,29 +156,6 @@ function extractFromHtml(html: string): string | null {
   return null;
 }
 
-async function offlineDownloadLink(fileId: string, gameId: string): Promise<string | null> {
-  try {
-    const url = `https://www.nexusmods.com/Core/Libs/Mods/Offline/DownloadLink?id=${encodeURIComponent(fileId)}&game_id=${encodeURIComponent(gameId)}&nmm=0`;
-    const response = await fetchWithTimeout(url, {
-      credentials: 'include',
-      headers: {
-        Accept: 'application/json, text/javascript, */*; q=0.01',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      redirect: 'follow',
-    });
-    const finalUrl = response.url || '';
-    if (/^https?:\/\//i.test(finalUrl) && !/nexusmods\.com/i.test(finalUrl)) return finalUrl;
-    if (!response.ok) return null;
-    const contentType = response.headers.get('content-type') || '';
-    if (contentType.includes('application/json') || contentType.includes('text/javascript'))
-      return extractUrl(await response.json());
-    return extractFromHtml(await response.text());
-  } catch {
-    return null;
-  }
-}
-
 function scrapeCurrentPage(): string | null {
   return extractFromHtml(document.documentElement.outerHTML) || extractFromHtml(document.body?.innerText || '');
 }
@@ -204,9 +181,6 @@ export default function advanceDownload({ fileId, pagePath }: DownloadRequest): 
 
     const blockedAfterRequest = blockedText();
     if (blockedAfterRequest) return result({ step: 'blocked', error: blockedAfterRequest });
-
-    const offline = await offlineDownloadLink(fileId, gameId);
-    if (offline) return result({ step: 'found-url', url: offline });
 
     const pinned = current.searchParams.get('file_id') === fileId;
     const slow =

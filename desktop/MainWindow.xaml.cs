@@ -269,24 +269,17 @@ public partial class MainWindow : Window {
         var target=new UriBuilder(Data.PageUrl(task.File.Url));
         target.Query="tab=files&file_id="+Uri.EscapeDataString(task.File.FileId)+"&nmm=0";
         await Navigate(target.Uri.AbsoluteUri);
-        var script=File.ReadAllText(Path.Combine(assets,"nexus-download.js"));
         var deadline=DateTime.UtcNow.AddSeconds(75);
         while(ReferenceEquals(active,task)&&task.Status=="waiting"&&DateTime.UtcNow<deadline){
-            string result;
-            try{
-                result=await Site.CoreWebView2.ExecuteScriptAsync("("+script+")("+Data.Encode(new{fileId=task.File.FileId,pagePath=target.Path})+")")
-                    .WaitAsync(TimeSpan.FromSeconds(30));
-            }catch(TimeoutException){
-                FailDownloadLookup(task,"网页响应超时，未能读取 Nexus 下载入口。","Nexus 下载入口响应超时，队列已停止；请重新尝试。",false);
-                return;
-            }
+            var lookup=await InvokeDownloadAdapter(task.File.FileId,target.Path);
+            if(lookup is null){await Task.Delay(500);continue;}
+            var result=lookup.Value.GetRawText();
             string? step=null,url=null,error=null;
-            try{
-                using var doc=JsonDocument.Parse(JsonSerializer.Deserialize<string>(result)??"{}");
+            using(var doc=JsonDocument.Parse(result)){
                 if(doc.RootElement.TryGetProperty("step",out var stepProp))step=stepProp.GetString();
                 if(doc.RootElement.TryGetProperty("url",out var urlProp))url=urlProp.GetString();
                 if(doc.RootElement.TryGetProperty("error",out var errorProp))error=errorProp.GetString();
-            }catch{step=JsonSerializer.Deserialize<string>(result);}
+            }
             if(step=="challenge"||snapshot?.Status is "challenge" or "login"){
                 if(snapshot?.Status=="login"){SetMessage("需要登录 Nexus，请点击“查看网页”完成登录后继续。");}
                 else{
@@ -318,6 +311,37 @@ public partial class MainWindow : Window {
             FailDownloadLookup(task,"75 秒内未取得 Nexus 下载链接，请检查登录、验证或文件版本。","获取下载链接超时，队列已停止；可查看网页步骤后重新尝试。",false);
         }
     }
+
+    async Task<JsonElement?> InvokeDownloadAdapter(string fileId,string pagePath){
+        var script=File.ReadAllText(Path.Combine(assets,"nexus-download.js"));
+        var invocationId=Guid.NewGuid().ToString("N");
+        var args=Data.Encode(new{fileId,pagePath});
+        var starter=
+            "(function(){"+
+            "const key="+JsonSerializer.Serialize(invocationId)+";"+
+            "window.__ASH_DOWNLOAD_LOOKUP__={id:key,value:{step:'pending'}};"+
+            "Promise.resolve(("+script+")("+args+")).then(function(raw){"+
+            "if(!window.__ASH_DOWNLOAD_LOOKUP__||window.__ASH_DOWNLOAD_LOOKUP__.id!==key)return;"+
+            "try{window.__ASH_DOWNLOAD_LOOKUP__.value=typeof raw==='string'?JSON.parse(raw):raw||{step:'failed',error:'下载适配器没有返回结果。'};}"+
+            "catch(e){window.__ASH_DOWNLOAD_LOOKUP__.value={step:'failed',error:String(e)};}"+
+            "}).catch(function(e){if(window.__ASH_DOWNLOAD_LOOKUP__&&window.__ASH_DOWNLOAD_LOOKUP__.id===key)window.__ASH_DOWNLOAD_LOOKUP__.value={step:'failed',error:String(e)};});"+
+            "return true;})()";
+        await Site.CoreWebView2.ExecuteScriptAsync(starter).WaitAsync(TimeSpan.FromSeconds(5));
+        var deadline=DateTime.UtcNow.AddSeconds(30);
+        while(DateTime.UtcNow<deadline){
+            var raw=await Site.CoreWebView2.ExecuteScriptAsync(
+                "window.__ASH_DOWNLOAD_LOOKUP__&&window.__ASH_DOWNLOAD_LOOKUP__.id==="+
+                JsonSerializer.Serialize(invocationId)+"?window.__ASH_DOWNLOAD_LOOKUP__.value:null")
+                .WaitAsync(TimeSpan.FromSeconds(5));
+            using var document=JsonDocument.Parse(string.IsNullOrWhiteSpace(raw)?"null":raw);
+            var root=document.RootElement;
+            if(root.ValueKind==JsonValueKind.Object&&root.TryGetProperty("step",out var step)&&
+               step.GetString()!="pending")return root.Clone();
+            await Task.Delay(200);
+        }
+        return null;
+    }
+
     async Task StartTransferFromUrl(DownloadTask task,Uri url){
         try{
             var folder=task.File.CollectionName.Length>0?task.File.CollectionName[..Math.Min(60,task.File.CollectionName.Length)]+"_r"+task.File.Revision:task.Id;
