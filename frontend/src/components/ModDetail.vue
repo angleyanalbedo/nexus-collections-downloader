@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t, locale, setLocale } from '../i18n';
 import { computed } from 'vue';
 import type { PageSnapshot } from '../domain/models';
 import { localPath } from '../domain/navigation';
@@ -33,22 +34,22 @@ function enqueueFile(id: string, start: boolean) {
   <div id="detail">
     <div class="detail-actions">
       <template v-if="isCollection"
-        ><button :class="{ primary: !inCollectionFiles }" @click="openTab('overview')">概览</button
+        ><button :class="{ primary: !inCollectionFiles }" @click="openTab('overview')">{{ t("概览") }}</button
         ><button :class="{ primary: inCollectionFiles }" @click="openTab('mods')">
-          Mod 清单
+          {{ t("Mod 清单") }}
         </button></template
       >
       <template v-else
         ><button :class="{ primary: page.kind === 'detail' }" @click="openTab('description')">
-          介绍</button
+          {{ t("介绍") }}</button
         ><button :class="{ primary: page.kind === 'files' }" @click="openTab('files')">
-          文件<span v-if="files.length"> · {{ files.length }}</span>
+          {{ t("文件") }}<span v-if="files.length"> · {{ files.length }}</span>
         </button></template
       >
-      <button @click="send({ action: 'browser' })">在 Nexus 查看 ↗</button>
+      <button @click="send({ action: 'browser' })">{{ t("在 Nexus 查看 ↗") }}</button>
     </div>
     <div v-if="page.description" class="detail-summary">{{ page.description }}</div>
-    <p v-else-if="page.kind === 'detail'" class="muted">介绍正文正在加载…</p>
+    <p v-else-if="page.kind === 'detail'" class="muted">{{ t("介绍正文正在加载…") }}</p>
     <template v-if="isCollection">
       <CollectionPicker
         v-if="inCollectionFiles && page.collection?.files.length"
@@ -56,19 +57,19 @@ function enqueueFile(id: string, start: boolean) {
         :covers="covers"
       />
       <div v-else-if="inCollectionFiles" class="empty">
-        <p>正在读取合集指定的文件清单…</p>
-        <button @click="refresh">重新读取</button
-        ><button @click="send({ action: 'browser' })">查看原网页 ↗</button>
+        <p>{{ t("正在读取合集指定的文件清单…") }}</p>
+        <button @click="refresh">{{ t("重新读取") }}</button
+        ><button @click="send({ action: 'browser' })">{{ t("查看原网页 ↗") }}</button>
       </div>
       <div v-else class="collection-entry">
-        <button class="primary" @click="openTab('mods')">选择合集文件 →</button>
+        <button class="primary" @click="openTab('mods')">{{ t("选择合集文件 →") }}</button>
       </div>
       <section v-if="!inCollectionFiles" class="overview-mods">
         <div class="overview-heading">
           <h2>
-            合集中的 Mod <small v-if="overviewItems.length">{{ overviewItems.length }}</small>
+            {{ t("合集中的 Mod") }} <small v-if="overviewItems.length">{{ overviewItems.length }}</small>
           </h2>
-          <button @click="openTab('mods')">查看 Mod 清单 →</button>
+          <button @click="openTab('mods')">{{ t("查看 Mod 清单 →") }}</button>
         </div>
         <div v-if="overviewItems.length" class="cards">
           <ModCard
@@ -79,32 +80,32 @@ function enqueueFile(id: string, start: boolean) {
             @open="openItem"
           />
         </div>
-        <p v-else class="muted">正在读取合集的 Mod 卡片…</p>
+        <p v-else class="muted">{{ t("正在读取合集的 Mod 卡片…") }}</p>
       </section>
     </template>
     <template v-else-if="page.kind === 'files'">
-      <p v-if="files.length" class="muted">按需要选择文件版本，并阅读作者说明。</p>
+      <p v-if="files.length" class="muted">{{ t("按需要选择文件版本，并阅读作者说明。") }}</p>
       <div v-for="file in files" :key="file.id" class="file-row">
         <div class="file-info">
-          <small>{{ file.group || '文件' }}</small>
+          <small>{{ file.group || t('文件') }}</small>
           <h3>{{ file.name }}</h3>
           <small>{{ file.meta }}</small>
         </div>
         <div class="file-actions">
           <button :disabled="queued.has(file.id)" @click="enqueueFile(file.id, false)">
-            {{ queued.has(file.id) ? '已加入队列' : '加入队列' }}
+            {{ queued.has(file.id) ? t('已加入队列') : t('加入队列') }}
           </button>
           <button
             class="primary"
             :disabled="queued.has(file.id)"
             @click="enqueueFile(file.id, true)"
           >
-            立即下载
+            {{ t("立即下载") }}
           </button>
         </div>
       </div>
       <div v-if="!files.length" class="empty">
-        正在读取文件…<br /><button @click="send({ action: 'browser' })">在原网页查看 ↗</button>
+        {{ t("正在读取文件…") }}<br /><button @click="send({ action: 'browser' })">{{ t("在原网页查看 ↗") }}</button>
       </div>
     </template>
   </div>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t, locale, setLocale } from './i18n';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { RouterView, useRoute } from 'vue-router';
 import Sidebar from './components/Sidebar.vue';
@@ -36,6 +37,9 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard));
 <template>
   <div class="workspace-layout">
     <Sidebar />
+    <select class="language-selector" aria-label="Language" :value="locale" @change="setLocale(($event.target as HTMLSelectElement).value as 'en' | 'zh-CN')">
+      <option value="zh-CN">简体中文</option><option value="en">English</option>
+    </select>
     <main>
       <NavigationBar @open-link="showLink = true" />
       <form v-if="showLink" id="linkForm" @submit.prevent="submitLink">
@@ -43,21 +47,21 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard));
           v-model="link"
           type="url"
           required
-          placeholder="粘贴 Nexus 的游戏、Mod 或合集链接"
-          aria-label="Nexus 链接"
-        /><button class="primary">打开</button
-        ><button type="button" @click="showLink = false">取消</button>
+          :placeholder="t('粘贴 Nexus 的游戏、Mod 或合集链接')"
+          :aria-label="t('Nexus 链接')"
+        /><button class="primary">{{ t("打开") }}</button
+        ><button type="button" @click="showLink = false">{{ t("取消") }}</button>
       </form>
       <p v-if="workspace.linkError" role="alert">{{ workspace.linkError }}</p>
       <div v-if="notice" id="notice" role="status">
         <span id="message">{{ workspace.host.message }}</span
-        ><button @click="send({ action: 'browser' })">查看网页 ↗</button>
+        ><button @click="send({ action: 'browser' })">{{ t("查看网页 ↗") }}</button>
       </div>
       <RouterView />
       <footer v-if="pendingTasks.length && route.path !== '/downloads'" id="downloadBar">
         <button @click="navigate('/downloads')">
           ↓ {{ pendingTasks.length }} 个任务 · 查看下载队列</button
-        ><button class="primary" @click="send({ action: 'start' })">开始队列</button>
+        ><button class="primary" @click="send({ action: 'start' })">{{ t("开始队列") }}</button>
       </footer>
     </main>
   </div>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t, locale, setLocale } from '../i18n';
 import { computed, ref, watch } from 'vue';
 import type { SiteItem } from '../domain/models';
 import { imageUrl } from '../domain/format';
@@ -19,16 +20,16 @@ watch(source, () => {
       alt=""
       @error="failed = true"
     />
-    <div v-else class="placeholder">{{ failed ? '封面暂不可用' : '暂无封面' }}</div>
+    <div v-else class="placeholder">{{ failed ? t('封面暂不可用') : t('暂无封面') }}</div>
     <div class="card-body">
       <h3>{{ item.name }}</h3>
       <small>{{ item.meta }}</small
       ><span class="go">{{
         item.kind === 'game'
-          ? '浏览 Mod →'
+          ? t('浏览 Mod →')
           : item.kind === 'collection'
-            ? '查看合集 →'
-            : '查看详情 →'
+            ? t('查看合集 →')
+            : t('查看详情 →')
       }}</span>
     </div>
   </button>

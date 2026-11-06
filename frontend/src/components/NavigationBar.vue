@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t, locale, setLocale } from '../i18n';
 import { computed } from 'vue';
 import { breadcrumbs, parentPath } from '../domain/navigation';
 import {
@@ -14,7 +15,7 @@ import {
 defineEmits<{ openLink: [] }>();
 const crumbs = computed(() =>
   currentPath.value === '/downloads'
-    ? [{ label: '下载队列', path: '/downloads' }]
+    ? [{ label: t("下载队列"), path: '/downloads' }]
     : breadcrumbs(currentPath.value, currentGameName.value, currentPage.value?.title || ''),
 );
 const hasParent = computed(
@@ -25,7 +26,7 @@ const hasParent = computed(
   <header>
     <div class="navigation-buttons">
       <button
-        aria-label="返回"
+        :aria-label="t('返回')"
         title="返回（Alt + ←）"
         :disabled="!workspace.canBack"
         @click="back"
@@ -33,18 +34,18 @@ const hasParent = computed(
         ←
       </button>
       <button
-        aria-label="前进"
+        :aria-label="t('前进')"
         title="前进（Alt + →）"
         :disabled="!workspace.canForward"
         @click="forward"
       >
         →
       </button>
-      <button aria-label="上一级" title="上一级（Alt + ↑）" :disabled="!hasParent" @click="up">
+      <button :aria-label="t('上一级')" title="上一级（Alt + ↑）" :disabled="!hasParent" @click="up">
         ↑
       </button>
     </div>
-    <nav class="breadcrumbs" aria-label="页面位置">
+    <nav class="breadcrumbs" :aria-label="t('页面位置')">
       <template v-for="(crumb, index) in crumbs" :key="crumb.path"
         ><span v-if="index">/</span
         ><button
@@ -55,6 +56,6 @@ const hasParent = computed(
         </button></template
       >
     </nav>
-    <button class="header-link" @click="$emit('openLink')">打开 Nexus 链接 ↗</button>
+    <button class="header-link" @click="$emit('openLink')">{{ t("打开 Nexus 链接 ↗") }}</button>
   </header>
 </template>

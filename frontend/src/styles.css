@@ -866,3 +866,5 @@ header {
     grid-column: 1 / -1;
   }
 }
+
+.language-selector { position:fixed; bottom:12px; left:20px; z-index:30; background:#20251b; color:#d9ed9b; border:1px solid #414936; border-radius:6px; padding:6px; }

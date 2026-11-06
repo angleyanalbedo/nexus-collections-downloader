@@ -22,6 +22,10 @@ public partial class MainWindow {
                     Publish();
                     if(queueEnabled)ScheduleNext();
                     break;
+                case "setLanguage":
+                    var language=Val("value");
+                    if(language is not ("en" or "zh-CN"))break;
+                    Localization.Language=language;store.Set("language",language);Publish();break;
                 case "ready":Publish();break;
                 case "browse":
                     if(active?.Status=="waiting")throw new InvalidOperationException("正在获取当前文件的下载链接，请稍候。");

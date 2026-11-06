@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t, locale, setLocale } from '../i18n';
 import { computed, ref, watch } from 'vue';
 import type { CollectionManifest } from '../domain/models';
 import { groupFiles, defaultSelection, setSelected, selectionSummary } from '../domain/selection';
@@ -60,15 +61,15 @@ function coverFor(url: string) {
       </button>
     </div>
     <div class="collection-tools">
-      <button @click="selected = new Set(manifest.files.map((file) => file.id))">全选</button
-      ><button @click="selected = new Set()">全不选</button
-      ><button @click="selected = defaultSelection(manifest)">恢复默认选择</button
+      <button @click="selected = new Set(manifest.files.map((file) => file.id))">{{ t("全选") }}</button
+      ><button @click="selected = new Set()">{{ t("全不选") }}</button
+      ><button @click="selected = defaultSelection(manifest)">{{ t("恢复默认选择") }}</button
       ><button
         data-collection-enqueue
         :disabled="!manifest.complete || !summary.count"
         @click="enqueue(false)"
       >
-        仅加入队列
+        {{ t("仅加入队列") }}
       </button>
     </div>
     <p v-if="!manifest.complete" class="muted">
@@ -102,7 +103,7 @@ function coverFor(url: string) {
           <span class="group-mod-placeholder" v-else>MOD</span>
           <span
             ><strong>{{ group.name }}</strong
-            ><small>进入 Mod 详情与文件页 ↗</small></span
+            ><small>{{ t("进入 Mod 详情与文件页 ↗") }}</small></span
           ></button
         ><small
           >{{ group.files.filter((file) => selected.has(file.id)).length }} /
@@ -120,13 +121,13 @@ function coverFor(url: string) {
           <div>
             <strong>{{ file.name }}</strong
             ><small
-              >版本 {{ file.version || '未标注' }} · {{ formatBytes(file.size) }} · 文件
+              >版本 {{ file.version || t('未标注') }} · {{ formatBytes(file.size) }} · 文件
               {{ file.fileId }}<template v-if="file.optional === true"> · 作者标为可选</template
               ><template v-else-if="file.optional === false"> · 作者标为必选</template></small
             >
           </div>
           <button class="file-download" @click.stop.prevent="downloadFile(file.id)">
-            单独下载
+            {{ t("单独下载") }}
           </button></label
         >
       </div>
