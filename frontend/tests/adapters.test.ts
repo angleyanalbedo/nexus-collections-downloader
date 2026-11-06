@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { snapshot } from '../adapters/snapshot';
 import { readCollection } from '../adapters/collection';
+import { detectBlockedText } from '../adapters/download';
 const resource = {
   modId: 444,
   name: 'Example Mod',
@@ -56,5 +57,13 @@ describe('Nexus adapters', () => {
     const result = snapshot(doc, 'https://www.nexusmods.com/game/mods/1');
     expect(result.description).toBe(description.trim());
     expect(result.status).toBe('ready');
+  });
+  it('recognizes archived Nexus files before making download requests', () => {
+    expect(
+      detectBlockedText(
+        'You are downloading an archived version of this mod which is no longer supported by the mod author.',
+      ),
+    ).toContain('归档');
+    expect(detectBlockedText('Manual download')).toBeNull();
   });
 });

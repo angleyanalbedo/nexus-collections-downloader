@@ -70,8 +70,8 @@ export type HostCommand =
   | {
       action: 'ready' | 'login' | 'browser' | 'read' | 'start' | 'stop' | 'folder' | 'openFolder';
     }
-  | { action: 'pause' | 'resume' | 'cancel'; id: string }
-  | { action: 'cancelAll' }
+  | { action: 'pause' | 'resume' | 'cancel' | 'deleteTask'; id: string }
+  | { action: 'cancelAll' | 'clearFinished' }
   | { action: 'browse'; url: string }
   | { action: 'search'; scope: 'games' | 'mods' | 'collections'; game: string; query: string }
   | { action: 'enqueue'; ids: string[]; start?: boolean }

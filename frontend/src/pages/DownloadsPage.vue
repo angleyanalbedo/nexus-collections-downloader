@@ -6,10 +6,14 @@ import type { DownloadTask } from '../domain/models';
 import { taskLabels, formatBytes } from '../domain/format';
 
 const activeTasks = computed(() =>
-  workspace.host.tasks.filter((task) => !['completed', 'cancelled'].includes(task.status)),
+  workspace.host.tasks.filter(
+    (task) => !['completed', 'cancelled', 'failed'].includes(task.status),
+  ),
 );
 const finishedTasks = computed(() =>
-  workspace.host.tasks.filter((task) => ['completed', 'cancelled'].includes(task.status)).reverse(),
+  workspace.host.tasks
+    .filter((task) => ['completed', 'cancelled', 'failed'].includes(task.status))
+    .reverse(),
 );
 const waitingCount = computed(
   () => workspace.host.tasks.filter((task) => task.status === 'waiting').length,
@@ -47,6 +51,12 @@ function cancel(task: DownloadTask) {
 }
 function retry(task: DownloadTask) {
   send({ action: 'retry', id: task.id });
+}
+function remove(task: DownloadTask) {
+  send({ action: 'deleteTask', id: task.id });
+}
+function clearFinished() {
+  send({ action: 'clearFinished' });
 }
 </script>
 
@@ -191,7 +201,10 @@ function retry(task: DownloadTask) {
     <section v-if="finishedTasks.length" class="task-group finished-section">
       <div class="section-heading">
         <h2>已结束</h2>
-        <span>{{ finishedTasks.length }} 项</span>
+        <div class="finished-heading-actions">
+          <span>{{ finishedTasks.length }} 项</span>
+          <button class="danger-ghost" @click="clearFinished">清空已结束</button>
+        </div>
       </div>
       <div class="finished-list">
         <article
@@ -205,7 +218,11 @@ function retry(task: DownloadTask) {
             <h3>{{ task.file.name }}</h3>
             <small>{{ taskLabels[task.status] }} · {{ formatBytes(task.received) }}</small>
           </div>
-          <button v-if="task.status === 'cancelled'" @click="retry(task)">重新加入</button>
+          <p v-if="task.error" class="task-error">{{ task.error }}</p>
+          <div class="finished-actions">
+            <button v-if="canRetry(task)" @click="retry(task)">重新加入</button>
+            <button class="danger-ghost" @click="remove(task)">删除记录</button>
+          </div>
         </article>
       </div>
     </section>

@@ -24,6 +24,8 @@ export interface DownloadResult {
   error?: string;
 }
 
+const REQUEST_TIMEOUT_MS = 12_000;
+
 function result(data: DownloadResult): string {
   return JSON.stringify(data);
 }
@@ -76,9 +78,13 @@ function extractUrl(value: unknown): string | null {
   return null;
 }
 
-function blockedText(): string | null {
-  const text = document.body?.innerText?.replace(/\s+/g, ' ') || '';
-  if (/archived version of this mod|no longer supported|author.*(?:disabled|removed).*download/i.test(text))
+export function detectBlockedText(value: string): string | null {
+  const text = value.replace(/\s+/g, ' ');
+  if (
+    /archived version of this mod|no longer supported|(?:file|version).{0,30}(?:archived|retired|removed|deleted)|download (?:was|has been) (?:disabled|removed)/i.test(
+      text,
+    )
+  )
     return '该文件已归档或作者关闭了下载入口，无法自动下载。';
   if (
     /(?:premium|supporter).{0,40}(?:required|only|exclusive)|(?:requires|need|needs).{0,30}(?:premium|supporter)/i.test(
@@ -89,9 +95,23 @@ function blockedText(): string | null {
   return null;
 }
 
+function blockedText(): string | null {
+  return detectBlockedText(document.body?.innerText || '');
+}
+
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
 async function postGenerateDownloadUrl(fileId: string, gameId: string): Promise<string | null> {
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       'https://www.nexusmods.com/Core/Libs/Common/Managers/Downloads?GenerateDownloadUrl',
       {
         method: 'POST',
@@ -139,7 +159,7 @@ function extractFromHtml(html: string): string | null {
 async function offlineDownloadLink(fileId: string, gameId: string): Promise<string | null> {
   try {
     const url = `https://www.nexusmods.com/Core/Libs/Mods/Offline/DownloadLink?id=${encodeURIComponent(fileId)}&game_id=${encodeURIComponent(gameId)}&nmm=0`;
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       credentials: 'include',
       headers: {
         Accept: 'application/json, text/javascript, */*; q=0.01',
@@ -181,6 +201,9 @@ export default function advanceDownload({ fileId, pagePath }: DownloadRequest): 
   return (async () => {
     const viaAjax = await postGenerateDownloadUrl(fileId, gameId);
     if (viaAjax) return result({ step: 'found-url', url: viaAjax });
+
+    const blockedAfterRequest = blockedText();
+    if (blockedAfterRequest) return result({ step: 'blocked', error: blockedAfterRequest });
 
     const offline = await offlineDownloadLink(fileId, gameId);
     if (offline) return result({ step: 'found-url', url: offline });

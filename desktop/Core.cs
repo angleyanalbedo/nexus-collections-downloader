@@ -105,6 +105,17 @@ public sealed class Store : IDisposable {
         } return rows;
     }
     public void Save(DownloadTask row) {using var cmd=db.CreateCommand();cmd.CommandText="INSERT INTO tasks(id,data) VALUES($id,$data) ON CONFLICT(id) DO UPDATE SET data=$data";cmd.Parameters.AddWithValue("$id",row.Id);cmd.Parameters.AddWithValue("$data",Data.Encode(row));cmd.ExecuteNonQuery();}
+    public void Delete(string id) {
+        using var cmd=db.CreateCommand();
+        cmd.CommandText="DELETE FROM tasks WHERE id=$id";
+        cmd.Parameters.AddWithValue("$id",id);
+        cmd.ExecuteNonQuery();
+    }
+    public void DeleteFinished() {
+        using var cmd=db.CreateCommand();
+        cmd.CommandText="DELETE FROM tasks WHERE json_extract(data, '$.status') IN ('completed','cancelled','failed')";
+        cmd.ExecuteNonQuery();
+    }
     public void SaveMany(IEnumerable<DownloadTask> rows){
         using var transaction=db.BeginTransaction();
         foreach(var row in rows){using var cmd=db.CreateCommand();cmd.Transaction=transaction;cmd.CommandText="INSERT INTO tasks(id,data) VALUES($id,$data)";cmd.Parameters.AddWithValue("$id",row.Id);cmd.Parameters.AddWithValue("$data",Data.Encode(row));cmd.ExecuteNonQuery();}

@@ -661,6 +661,12 @@ header {
   color: var(--muted);
   font-size: 12px;
 }
+.finished-heading-actions,
+.finished-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .task-stack {
   display: grid;
   gap: 10px;
@@ -795,7 +801,7 @@ header {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.018);
 }
-.finished-row > div {
+.finished-row > div:not(.finished-actions) {
   flex: 1;
   min-width: 0;
 }
@@ -815,13 +821,21 @@ header {
   color: var(--accent);
   font-size: 12px;
 }
-.finished-row.is-cancelled .finished-mark {
+.finished-row.is-cancelled .finished-mark,
+.finished-row.is-failed .finished-mark {
   background: #332622;
   color: #c78f83;
 }
 .finished-row button {
   padding: 5px 9px;
   font-size: 11px;
+}
+.finished-actions {
+  flex: 0 0 auto;
+}
+.finished-row .task-error {
+  flex: 1 1 220px;
+  margin: 0;
 }
 .empty strong {
   color: var(--fg);

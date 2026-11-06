@@ -52,7 +52,9 @@ export const currentGameName = computed(
   () => gameNames.get(currentGame.value || '') || currentGame.value || '',
 );
 export const pendingTasks = computed(() =>
-  workspace.host.tasks.filter((task) => !['completed', 'cancelled'].includes(task.status)),
+  workspace.host.tasks.filter(
+    (task) => !['completed', 'cancelled', 'failed'].includes(task.status),
+  ),
 );
 
 export const overviewItems = computed(() => {

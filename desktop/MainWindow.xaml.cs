@@ -42,8 +42,9 @@ public partial class MainWindow : Window {
             Ui.CoreWebView2.NewWindowRequested+=(_,a)=>a.Handled=true;
             Ui.CoreWebView2.WebMessageReceived+=OnMessage;
             var siteEnv=await CoreWebView2Environment.CreateAsync(null,Path.Combine(dataDir,"NexusProfile"));
-            BrowserRow.Height=new GridLength(1);
-            await Site.EnsureCoreWebView2Async(siteEnv);Stage("site initialized");BrowserRow.Height=new GridLength(0);
+            BrowserPanel.Visibility=Visibility.Visible;BrowserRow.Height=new GridLength(1);
+            await Site.EnsureCoreWebView2Async(siteEnv);Stage("site initialized");
+            HideBrowserPanel();
             Site.CoreWebView2.Settings.IsWebMessageEnabled=false;
             Site.CoreWebView2.NavigationStarting+=(_,a)=>{
                 navigationLog.Add(new{stage="starting",url=DisplayUrl(a.Uri),scheme=Uri.TryCreate(a.Uri,UriKind.Absolute,out var loggedUri)?loggedUri.Scheme:"",localBlank=a.Uri=="about:blank"});
@@ -79,7 +80,7 @@ public partial class MainWindow : Window {
             }
         } catch(Exception ex){MessageBox.Show("ASH 启动失败："+ex.Message+"\n请确认已安装 .NET 8 桌面运行时和 Microsoft Edge WebView2。","ASH");}
     }
-    void Publish(){if(!ready||closing)return;Ui.CoreWebView2.PostWebMessageAsJson(Data.Encode(new {type="state",tasks,snapshot=browseSnapshot??snapshot,busy,queueEnabled,output,message,initialUrl=InitialUrl(),navigationManagedByHost=HostManagesNavigation(),siteUrl=DisplayUrl(Site.Source?.AbsoluteUri??""),browserVisible=BrowserRow.Height.Value>0}));}
+    void Publish(){if(!ready||closing)return;Ui.CoreWebView2.PostWebMessageAsJson(Data.Encode(new {type="state",tasks,snapshot=browseSnapshot??snapshot,busy,queueEnabled,output,message,initialUrl=InitialUrl(),navigationManagedByHost=HostManagesNavigation(),siteUrl=DisplayUrl(Site.Source?.AbsoluteUri??""),browserVisible=BrowserPanel.Visibility==Visibility.Visible}));}
     string InitialUrl(){
         var args=Environment.GetCommandLineArgs();
         if(args.Length>2&&args[1]=="--open")return args[2];
@@ -93,8 +94,9 @@ public partial class MainWindow : Window {
     bool HostManagesNavigation(){var args=Environment.GetCommandLineArgs();return args.Length>1&&args[1]!="--open"&&args[1]!="--verify-startup";}
     void SetMessage(string s){message=s;Publish();}
     static string DisplayUrl(string s){if(!Uri.TryCreate(s,UriKind.Absolute,out var u))return "";return u.GetLeftPart(UriPartial.Path);}
-    void ShowBrowser(){BrowserRow.Height=new GridLength(350);Publish();}
-    void HideBrowser(object sender,RoutedEventArgs e){BrowserRow.Height=new GridLength(0);Publish();}
+    void HideBrowserPanel(){BrowserPanel.Visibility=Visibility.Collapsed;BrowserPanel.Opacity=0;BrowserPanel.IsHitTestVisible=false;BrowserRow.Height=new GridLength(0);}
+    void ShowBrowser(){BrowserPanel.Visibility=Visibility.Visible;BrowserPanel.Opacity=1;BrowserPanel.IsHitTestVisible=true;BrowserRow.Height=new GridLength(350);Publish();}
+    void HideBrowser(object sender,RoutedEventArgs e){HideBrowserPanel();Publish();}
     void RefreshBrowser(object sender,RoutedEventArgs e)=>Site.CoreWebView2?.Reload();
     async void ReadCurrent(object sender,RoutedEventArgs e)=>await ReadPage(true);
     void HandleNxm(){if(active is not null){active.Status="waiting";active.Error="网站提供的是管理器链接。请在网页选择 Manual / 手动下载；当前版本尚未实现 nxm 兑换。";store.Save(active);}SetMessage("已拦截 nxm 管理器链接，请点击“查看网页”选择手动下载入口。");}
@@ -198,7 +200,10 @@ public partial class MainWindow : Window {
                         if(runningServices.TryGetValue(cancelTask.Id,out var cancelService))cancelService.Service.CancelAsync();
                         if(runningTransfers.TryGetValue(cancelTask.Id,out var cancelSource))cancelSource.Cancel();
                         transferTickets.Remove(cancelTask.Id);
-                        if(ReferenceEquals(active,cancelTask))active=null;
+                        if(ReferenceEquals(active,cancelTask)){
+                            active=null;downloadPageActive=false;
+                            if(queueEnabled)ScheduleNext();
+                        }
                     }
                     Publish();break;
                 case "cancelAll":
@@ -210,6 +215,31 @@ public partial class MainWindow : Window {
                         transferTickets.Remove(task.Id);
                     }
                     active=null;Publish();break;
+                case "deleteTask":
+                    var deleteTask=tasks.FirstOrDefault(t=>t.Id==Val("id"));
+                    if(deleteTask is null)break;
+                    if(deleteTask.Status is not ("completed" or "cancelled" or "failed"))
+                        throw new InvalidOperationException("只能删除已结束的下载记录。");
+                    runningTransfers.Remove(deleteTask.Id);
+                    runningServices.Remove(deleteTask.Id);
+                    transferTickets.Remove(deleteTask.Id);
+                    tasks.Remove(deleteTask);
+                    store.Delete(deleteTask.Id);
+                    SetMessage("已删除下载记录，已下载的文件不会被删除。");
+                    break;
+                case "clearFinished":
+                    if(active is not null&&active.Status is ("queued" or "waiting" or "downloading" or "paused"))
+                        throw new InvalidOperationException("请先取消正在进行的任务。");
+                    var finished=tasks.Where(t=>t.Status is "completed" or "cancelled" or "failed").ToList();
+                    foreach(var task in finished){
+                        runningTransfers.Remove(task.Id);
+                        runningServices.Remove(task.Id);
+                        transferTickets.Remove(task.Id);
+                        tasks.Remove(task);
+                    }
+                    store.DeleteFinished();
+                    SetMessage(finished.Count>0?$"已清空 {finished.Count} 条下载记录，已下载的文件不会被删除。":"没有可清空的下载记录。");
+                    break;
                 case "retry":
                     var retry=tasks.FirstOrDefault(t=>t.Id==Val("id"));
                     if(retry!=null&&retry.Status is "failed" or "paused" or "cancelled"){
@@ -223,6 +253,14 @@ public partial class MainWindow : Window {
         }catch(Exception ex){SetMessage(ex is InvalidOperationException?ex.Message:"操作未完成，请检查页面后重试。");}
     }
     void ScheduleNext()=>Dispatcher.BeginInvoke(new Action(async()=>{try{await Next();}catch{queueEnabled=false;SetMessage("下一项下载未能打开，请重试队列。");}}));
+    void FailDownloadLookup(DownloadTask task,string error,string message,bool continueQueue){
+        task.Status="failed";task.Error=error;task.CanResume=false;store.Save(task);
+        if(ReferenceEquals(active,task))active=null;
+        downloadPageActive=false;
+        if(!continueQueue)queueEnabled=false;
+        SetMessage(message);
+        if(continueQueue&&queueEnabled)ScheduleNext();
+    }
     async Task Next(){
         if(!queueEnabled||active!=null||busy)return;
         active=tasks.FirstOrDefault(t=>t.Status=="queued");if(active==null){queueEnabled=false;SetMessage("队列已完成。");return;}
@@ -232,8 +270,16 @@ public partial class MainWindow : Window {
         target.Query="tab=files&file_id="+Uri.EscapeDataString(task.File.FileId)+"&nmm=0";
         await Navigate(target.Uri.AbsoluteUri);
         var script=File.ReadAllText(Path.Combine(assets,"nexus-download.js"));
-        for(var i=0;i<120&&ReferenceEquals(active,task)&&task.Status=="waiting";i++){
-            var result=await Site.CoreWebView2.ExecuteScriptAsync("("+script+")("+Data.Encode(new{fileId=task.File.FileId,pagePath=target.Path})+")");
+        var deadline=DateTime.UtcNow.AddSeconds(75);
+        while(ReferenceEquals(active,task)&&task.Status=="waiting"&&DateTime.UtcNow<deadline){
+            string result;
+            try{
+                result=await Site.CoreWebView2.ExecuteScriptAsync("("+script+")("+Data.Encode(new{fileId=task.File.FileId,pagePath=target.Path})+")")
+                    .WaitAsync(TimeSpan.FromSeconds(30));
+            }catch(TimeoutException){
+                FailDownloadLookup(task,"网页响应超时，未能读取 Nexus 下载入口。","Nexus 下载入口响应超时，队列已停止；请重新尝试。",false);
+                return;
+            }
             string? step=null,url=null,error=null;
             try{
                 using var doc=JsonDocument.Parse(JsonSerializer.Deserialize<string>(result)??"{}");
@@ -250,17 +296,27 @@ public partial class MainWindow : Window {
                 }
             }
             else if(step is "clicked-slow" or "clicked-manual" or "countdown"){task.Error="正在等待网站生成下载链接…";Publish();}
-            else if(step is "blocked" or "failed"){task.Status="failed";task.Error=string.IsNullOrWhiteSpace(error)?"未能获取下载链接：请检查网页下载入口。":error;store.Save(task);active=null;queueEnabled=false;Publish();return;}
+            else if(step is "invalid-file" or "blocked" or "failed"){
+                var detail=string.IsNullOrWhiteSpace(error)?"未能获取下载链接：文件可能已归档、移除或当前账户无权下载。":error;
+                FailDownloadLookup(task,detail,detail,true);
+                return;
+            }
             else if(step=="found-url"&&!string.IsNullOrWhiteSpace(url)){
-                if(!Uri.TryCreate(url,UriKind.Absolute,out var link)||link.Scheme!="https"||!string.IsNullOrEmpty(link.UserInfo)){task.Status="failed";task.Error="下载服务器返回了无效链接，请重试。";store.Save(task);active=null;queueEnabled=false;Publish();return;}
+                if(!Uri.TryCreate(url,UriKind.Absolute,out var link)||link.Scheme!="https"||!string.IsNullOrEmpty(link.UserInfo)){
+                    FailDownloadLookup(task,"下载服务器返回了无效链接，请重试。","下载服务器返回了无效链接，队列已停止。",false);
+                    return;
+                }
                 active=null;
+                downloadPageActive=false;
                 _=StartTransferFromUrl(task,link);
                 ScheduleNext();
                 return;
             }
             await Task.Delay(1000);
         }
-        if(ReferenceEquals(active,task)&&task.Status=="waiting"){SetMessage("暂未取得下载链接，请点击“查看网页”检查下载步骤；获得链接后 ASH 会自动接管。");}
+        if(ReferenceEquals(active,task)&&task.Status=="waiting"){
+            FailDownloadLookup(task,"75 秒内未取得 Nexus 下载链接，请检查登录、验证或文件版本。","获取下载链接超时，队列已停止；可查看网页步骤后重新尝试。",false);
+        }
     }
     async Task StartTransferFromUrl(DownloadTask task,Uri url){
         try{
@@ -300,7 +356,7 @@ public partial class MainWindow : Window {
         var transferCancel=new CancellationTokenSource();
         runningTransfers[task.Id]=transferCancel;transferTickets[task.Id]=ticket;
         var transfer=new ModernTransfer(ticket);runningServices[task.Id]=transfer;
-        task.Status="downloading";task.CanResume=false;task.Error="";store.Save(task);BrowserRow.Height=new GridLength(0);Publish();
+        task.Status="downloading";task.CanResume=false;task.Error="";store.Save(task);HideBrowserPanel();Publish();
         try{
             var progress=new Progress<(long Received,long Total)>(p=>{if(!closing){task.Received=p.Received;task.Total=p.Total;}});
             await transfer.Run(ticket.Url.AbsoluteUri,task.Path,task.File.Size,progress,transferCancel.Token);
