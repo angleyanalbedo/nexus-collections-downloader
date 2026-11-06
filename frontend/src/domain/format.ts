@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { TaskStatus } from './models';
 export const taskLabels: Record<TaskStatus, string> = {
   queued: '等待下载',
@@ -9,7 +10,7 @@ export const taskLabels: Record<TaskStatus, string> = {
   cancelled: '已取消',
 };
 export function formatBytes(value = 0): string {
-  if (value <= 0) return '大小未知';
+  if (value <= 0) return t('大小未知');
   const unit = Math.min(3, Math.floor(Math.log(value) / Math.log(1024)));
   return `${(value / 1024 ** unit).toFixed(unit ? 1 : 0)} ${['B', 'KB', 'MB', 'GB'][unit]}`;
 }

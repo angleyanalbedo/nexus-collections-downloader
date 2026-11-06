@@ -119,7 +119,7 @@ public partial class MainWindow {
                         queueEnabled=true;ScheduleNext();
                     }
                     Publish();break;
-                case "folder":var dialog=new Microsoft.Win32.OpenFolderDialog{Title="选择下载目录"};if(dialog.ShowDialog(this)==true){output=dialog.FolderName;store.Set("output",output);Publish();}break;
+                case "folder":var dialog=new Microsoft.Win32.OpenFolderDialog{Title=Localization.Text("选择下载目录")};if(dialog.ShowDialog(this)==true){output=dialog.FolderName;store.Set("output",output);Publish();}break;
                 case "openFolder":Directory.CreateDirectory(output);Process.Start(new ProcessStartInfo("explorer.exe",output){UseShellExecute=true});break;
             }
         }catch(Exception ex){SetMessage(ex is InvalidOperationException?ex.Message:"操作未完成，请检查页面后重试。");}

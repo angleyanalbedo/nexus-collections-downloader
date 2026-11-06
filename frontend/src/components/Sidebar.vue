@@ -19,14 +19,14 @@ const inDownloads = computed(() => route.path === '/downloads');
     <small>YOUR GAME. REIMAGINED.</small>
     <nav :aria-label="t('主导航')">
       <button data-home="games" :class="{ active: !inDownloads }" @click="navigate('/games')">
-        ▦ 游戏库
+        ▦ {{ t("游戏库") }}
       </button>
       <button
         data-view="downloads"
         :class="{ active: inDownloads }"
         @click="navigate('/downloads')"
       >
-        ↓ 下载 <span>{{ pendingTasks.length }}</span>
+        ↓ {{ t("下载") }} <span>{{ pendingTasks.length }}</span>
       </button>
     </nav>
     <div class="side-label">{{ t("当前游戏") }}</div>
@@ -50,6 +50,9 @@ const inDownloads = computed(() => route.path === '/downloads');
     <div class="account">
       <button @click="send({ action: 'login' })">{{ t("登录 / Nexus 账户 ↗") }}</button
       ><button @click="send({ action: 'browser' })">{{ t("打开原网页 ↗") }}</button>
+    <select class="language-selector" aria-label="Language" :value="locale" @change="setLocale(($event.target as HTMLSelectElement).value as 'en' | 'zh-CN')">
+      <option value="zh-CN">简体中文</option><option value="en">English</option>
+    </select>
     </div>
   </aside>
 </template>

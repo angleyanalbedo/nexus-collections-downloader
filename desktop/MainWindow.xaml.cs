@@ -55,9 +55,9 @@ public partial class MainWindow : Window {
             Ui.CoreWebView2.NavigationCompleted+=(_,_)=>Publish();
             Ui.CoreWebView2.Navigate("https://ash.local/index.html");
             timer.Tick+=async(_,_)=>{if(active is not null||runningTransfers.Count>0)Publish();if(!busy&&!reading&&Site.Source?.Host.EndsWith("nexusmods.com")==true)await ReadPage(false);};timer.Start();
-        } catch(Exception ex){MessageBox.Show("ASH 启动失败："+ex.Message+"\n请确认已安装 .NET 8 桌面运行时和 Microsoft Edge WebView2。","ASH");}
+        } catch(Exception ex){MessageBox.Show(Localization.Text("ASH 启动失败：")+ex.Message+"\n"+Localization.Text("请确认已安装 .NET 8 桌面运行时和 Microsoft Edge WebView2。"),"ASH");}
     }
-    void Publish(){if(!ready||closing)return;Ui.CoreWebView2.PostWebMessageAsJson(Data.Encode(new {type="state",tasks,snapshot=browseSnapshot??snapshot,busy,queueEnabled,maxConcurrentDownloads,output,message=Localization.Text(message),initialUrl=InitialUrl(),navigationManagedByHost=false,siteUrl=DisplayUrl(Site.Source?.AbsoluteUri??""),browserVisible=BrowserPanel.Visibility==Visibility.Visible}));}
+    void Publish(){if(!ready||closing)return;Ui.CoreWebView2.PostWebMessageAsJson(Data.Encode(new {type="state",tasks=tasks.Select(task=>new{task.Id,task.File,task.Status,Error=Localization.Text(task.Error),task.Path,task.Received,task.Total,task.CanResume}),snapshot=browseSnapshot??snapshot,busy,queueEnabled,maxConcurrentDownloads,output,message=Localization.Text(message),initialUrl=InitialUrl(),navigationManagedByHost=false,siteUrl=DisplayUrl(Site.Source?.AbsoluteUri??""),browserVisible=BrowserPanel.Visibility==Visibility.Visible}));}
     string InitialUrl(){
         var args=Environment.GetCommandLineArgs();
         var index=Array.IndexOf(args,"--open");
@@ -80,7 +80,7 @@ public partial class MainWindow : Window {
         try{store.Set("lastBrowseUrl",Data.PageUrl(Site.Source!.AbsoluteUri));}catch(InvalidOperationException){}
     }
     void OnClosing(object? sender,CancelEventArgs e){
-        if(runningTransfers.Count>0&&MessageBox.Show(this,"文件仍在下载。关闭后下次需要重新获取下载入口。是否关闭？","ASH",MessageBoxButton.YesNo)!=MessageBoxResult.Yes){e.Cancel=true;return;}
+        if(runningTransfers.Count>0&&MessageBox.Show(this,Localization.Text("文件仍在下载。关闭后下次需要重新获取下载入口。是否关闭？"),"ASH",MessageBoxButton.YesNo)!=MessageBoxResult.Yes){e.Cancel=true;return;}
         closing=true;timer.Stop();SaveLastUrl();foreach(var t in tasks)store?.Save(t);foreach(var service in runningServices.Values)service.Service.CancelAsync();foreach(var cancel in runningTransfers.Values)cancel.Cancel();transferTickets.Clear();store?.Dispose();Ui.Dispose();Site.Dispose();
     }
 }

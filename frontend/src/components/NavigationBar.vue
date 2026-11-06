@@ -27,7 +27,7 @@ const hasParent = computed(
     <div class="navigation-buttons">
       <button
         :aria-label="t('返回')"
-        title="返回（Alt + ←）"
+        :title="t('返回（Alt + ←）')"
         :disabled="!workspace.canBack"
         @click="back"
       >
@@ -35,13 +35,13 @@ const hasParent = computed(
       </button>
       <button
         :aria-label="t('前进')"
-        title="前进（Alt + →）"
+        :title="t('前进（Alt + →）')"
         :disabled="!workspace.canForward"
         @click="forward"
       >
         →
       </button>
-      <button :aria-label="t('上一级')" title="上一级（Alt + ↑）" :disabled="!hasParent" @click="up">
+      <button :aria-label="t('上一级')" :title="t('上一级（Alt + ↑）')" :disabled="!hasParent" @click="up">
         ↑
       </button>
     </div>
@@ -52,7 +52,7 @@ const hasParent = computed(
           :aria-current="index === crumbs.length - 1 ? 'page' : undefined"
           @click="navigate(crumb.path)"
         >
-          {{ crumb.label }}
+          {{ t(crumb.label) }}
         </button></template
       >
     </nav>

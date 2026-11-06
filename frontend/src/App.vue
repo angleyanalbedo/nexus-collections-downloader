@@ -12,7 +12,7 @@ const link = ref('');
 const notice = computed(
   () =>
     workspace.host.message &&
-    /失败|无法|需要|请在|验证|失效|未就绪|未能/.test(workspace.host.message),
+    /失败|无法|需要|请在|验证|失效|未就绪|未能|fail|error|required|sign in|expired|verification/i.test(workspace.host.message),
 );
 function submitLink() {
   openLink(link.value.trim());
@@ -37,9 +37,7 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard));
 <template>
   <div class="workspace-layout">
     <Sidebar />
-    <select class="language-selector" aria-label="Language" :value="locale" @change="setLocale(($event.target as HTMLSelectElement).value as 'en' | 'zh-CN')">
-      <option value="zh-CN">简体中文</option><option value="en">English</option>
-    </select>
+
     <main>
       <NavigationBar @open-link="showLink = true" />
       <form v-if="showLink" id="linkForm" @submit.prevent="submitLink">
@@ -52,7 +50,7 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard));
         /><button class="primary">{{ t("打开") }}</button
         ><button type="button" @click="showLink = false">{{ t("取消") }}</button>
       </form>
-      <p v-if="workspace.linkError" role="alert">{{ workspace.linkError }}</p>
+      <p v-if="workspace.linkError" role="alert">{{ t(workspace.linkError) }}</p>
       <div v-if="notice" id="notice" role="status">
         <span id="message">{{ workspace.host.message }}</span
         ><button @click="send({ action: 'browser' })">{{ t("查看网页 ↗") }}</button>
@@ -60,7 +58,7 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard));
       <RouterView />
       <footer v-if="pendingTasks.length && route.path !== '/downloads'" id="downloadBar">
         <button @click="navigate('/downloads')">
-          ↓ {{ pendingTasks.length }} 个任务 · 查看下载队列</button
+          ↓ {{ pendingTasks.length }} {{ t("个任务 · 查看下载队列") }}</button
         ><button class="primary" @click="send({ action: 'start' })">{{ t("开始队列") }}</button>
       </footer>
     </main>

@@ -78,14 +78,14 @@ function clear() {
       <input
         id="query"
         v-model="query"
-        :placeholder="`搜索 Nexus ${scope}`"
-        :aria-label="`搜索${scope}`"
+        :placeholder="`${t('搜索')} Nexus ${scope}`"
+        :aria-label="`${t('搜索')} ${scope}`"
       /><button class="primary" :disabled="workspace.host.busy">{{ t("搜索") }}</button
       ><button type="button" :disabled="workspace.host.busy" @click="clear">{{ t("清除") }}</button>
     </form>
     <div class="toolbar">
       <span id="resultCount" class="muted">{{
-        currentPage?.resultText || (cards.length ? `${cards.length} 项` : '')
+        currentPage?.resultText || (cards.length ? `${cards.length} ${t('项')}` : '')
       }}</span
       ><button v-if="currentGame && !detailed" @click="send({ action: 'browser' })">
         {{ t("筛选与排序 ↗") }}</button

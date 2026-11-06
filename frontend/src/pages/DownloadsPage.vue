@@ -73,7 +73,7 @@ function clearFinished() {
         <label>{{ t("同时下载") }}
           <select :value="workspace.host.maxConcurrentDownloads ?? 4"
             @change="send({ action: 'setConcurrency', value: Number(($event.target as HTMLSelectElement).value) })">
-            <option v-for="count in 16" :key="count" :value="count">{{ count }} 个文件</option>
+            <option v-for="count in 16" :key="count" :value="count">{{ count }} {{ t("个文件") }}</option>
           </select>
         </label>
         <button
@@ -124,7 +124,7 @@ function clearFinished() {
     <section class="task-group">
       <div class="section-heading">
         <h2>{{ t("进行中的任务") }}</h2>
-        <span>{{ activeTasks.length }} 项</span>
+        <span>{{ activeTasks.length }} {{ t("项") }}</span>
       </div>
       <div class="task-stack">
         <article
@@ -151,9 +151,9 @@ function clearFinished() {
               <div>
                 <small>{{ task.file.modName || t('Nexus Mods 文件') }}</small>
                 <h3>{{ task.file.name }}</h3>
-                <p v-if="task.file.version">版本 {{ task.file.version }}</p>
+                <p v-if="task.file.version">{{ t("版本") }} {{ task.file.version }}</p>
               </div>
-              <span class="status-chip">{{ taskLabels[task.status] }}</span>
+              <span class="status-chip">{{ t(taskLabels[task.status]) }}</span>
             </div>
             <p class="stage-title">{{ stageTitle(task) }}</p>
             <div
@@ -170,7 +170,7 @@ function clearFinished() {
               <span v-if="progress(task) !== null">{{ Math.round(progress(task)!) }}%</span>
             </div>
             <p v-if="task.error && task.status === 'failed'" class="task-error">
-              {{ task.error }}
+              {{ t(task.error) }}
             </p>
             <div class="task-actions">
               <button
@@ -209,7 +209,7 @@ function clearFinished() {
       <div class="section-heading">
         <h2>{{ t("已结束") }}</h2>
         <div class="finished-heading-actions">
-          <span>{{ finishedTasks.length }} 项</span>
+          <span>{{ finishedTasks.length }} {{ t("项") }}</span>
           <button class="danger-ghost" @click="clearFinished">{{ t("清空已结束") }}</button>
         </div>
       </div>
@@ -223,9 +223,9 @@ function clearFinished() {
           <span class="finished-mark">{{ task.status === 'completed' ? '✓' : '×' }}</span>
           <div>
             <h3>{{ task.file.name }}</h3>
-            <small>{{ taskLabels[task.status] }} · {{ formatBytes(task.received) }}</small>
+            <small>{{ t(taskLabels[task.status]) }} · {{ formatBytes(task.received) }}</small>
           </div>
-          <p v-if="task.error" class="task-error">{{ task.error }}</p>
+          <p v-if="task.error" class="task-error">{{ t(task.error) }}</p>
           <div class="finished-actions">
             <button v-if="canRetry(task)" @click="retry(task)">{{ t("重新加入") }}</button>
             <button class="danger-ghost" @click="remove(task)">{{ t("删除记录") }}</button>

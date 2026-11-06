@@ -45,9 +45,9 @@ function coverFor(url: string) {
   <section class="collection-picker">
     <div class="collection-summary">
       <div>
-        <h2>合集下载 · 修订版 {{ manifest.revision }}</h2>
+        <h2>{{ t("合集下载 · 修订版") }} {{ manifest.revision }}</h2>
         <p class="muted">
-          已选择 {{ summary.count }} / {{ manifest.files.length }} 个文件 ·
+          {{ t("已选择") }} {{ summary.count }} / {{ manifest.files.length }} {{ t("个文件") }} ·
           {{ formatBytes(summary.size) }}
         </p>
       </div>
@@ -57,7 +57,7 @@ function coverFor(url: string) {
         :disabled="!manifest.complete || !summary.count"
         @click="enqueue(true)"
       >
-        下载所选（{{ summary.count }}）
+        {{ t("下载所选（") }}{{ summary.count }}）
       </button>
     </div>
     <div class="collection-tools">
@@ -73,19 +73,16 @@ function coverFor(url: string) {
       </button>
     </div>
     <p v-if="!manifest.complete" class="muted">
-      {{ manifest.message }} 已读取 {{ manifest.files.length }} /
-      {{ manifest.expectedFiles || '?' }} 项。
+      {{ t(manifest.message) }} {{ t("已读取") }} {{ manifest.files.length }} /
+      {{ manifest.expectedFiles || '?' }} {{ t("项。") }}
     </p>
-    <p class="muted">
-      按合集指定版本下载，可取消整个 Mod 或单个文件。网站生成链接后由 ASH
-      下载；遇到登录或验证时会展开网页。
-    </p>
+    <p class="muted">{{ t('按合集指定版本下载，可取消整个 Mod 或单个文件。网站生成链接后由 ASH 下载；遇到登录或验证时会展开网页。') }}</p>
     <details v-for="(group, index) in groups" :key="group.id" class="collection-group" open>
       <summary>
         <input
           type="checkbox"
           :data-mod-group="index"
-          :aria-label="`选择 ${group.name}`"
+          :aria-label="`${t('选择')} ${group.name}`"
           :checked="group.files.every((file) => selected.has(file.id))"
           :indeterminate="
             group.files.some((file) => selected.has(file.id)) &&
@@ -107,7 +104,7 @@ function coverFor(url: string) {
           ></button
         ><small
           >{{ group.files.filter((file) => selected.has(file.id)).length }} /
-          {{ group.files.length }} 个文件</small
+          {{ group.files.length }} {{ t("个文件") }}</small
         >
       </summary>
       <div class="collection-files">
@@ -121,9 +118,9 @@ function coverFor(url: string) {
           <div>
             <strong>{{ file.name }}</strong
             ><small
-              >版本 {{ file.version || t('未标注') }} · {{ formatBytes(file.size) }} · 文件
-              {{ file.fileId }}<template v-if="file.optional === true"> · 作者标为可选</template
-              ><template v-else-if="file.optional === false"> · 作者标为必选</template></small
+              >{{ t("版本") }} {{ file.version || t('未标注') }} · {{ formatBytes(file.size) }} · {{ t("文件") }}
+              {{ file.fileId }}<template v-if="file.optional === true"> · {{ t("作者标为可选") }}</template
+              ><template v-else-if="file.optional === false"> · {{ t("作者标为必选") }}</template></small
             >
           </div>
           <button class="file-download" @click.stop.prevent="downloadFile(file.id)">
